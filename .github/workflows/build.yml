@@ -17,6 +17,7 @@ jobs:
         run: |
           cp node_modules/html2canvas/dist/html2canvas.min.js www/
           cp node_modules/jspdf/dist/jspdf.umd.min.js www/
+          cp "node_modules/vazirmatn/fonts/webfonts/Vazirmatn[wght].woff2" www/vazir.woff2 || cp "$(find node_modules/vazirmatn -name 'Vazirmatn-Regular.woff2' | head -1)" www/vazir.woff2 || true
           npx cap add android
           npx cap sync android
           M=android/app/src/main/AndroidManifest.xml
