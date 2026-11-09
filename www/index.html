@@ -1,0 +1,146 @@
+<!DOCTYPE html><html lang="fa" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>Clinic</title>
+<style>
+:root{--g:#39ff88;--t:#e8fff1;--m:#8fb9a0}
+*{box-sizing:border-box;font-family:Tahoma,sans-serif;-webkit-tap-highlight-color:transparent}
+body{margin:0;background:radial-gradient(circle at 15% 0,#0d4a2a,#04100a 55%) fixed;color:var(--t);padding:env(safe-area-inset-top) 0 90px}
+#app{padding:12px}
+h2,h3{margin:6px 0;color:var(--g);text-shadow:0 0 12px #39ff8888}
+.card,.sheet{background:rgba(57,255,136,.07);border:1px solid rgba(57,255,136,.28);border-radius:16px;backdrop-filter:blur(14px);padding:12px;margin:8px 0;box-shadow:0 0 18px rgba(57,255,136,.08)}
+.card.surgery{border-color:#ff6bd6;box-shadow:0 0 16px #ff6bd622}
+button{background:rgba(57,255,136,.15);color:var(--g);border:1px solid var(--g);border-radius:12px;padding:9px 13px;font-size:14px}
+button.s{padding:5px 9px;font-size:13px}
+button.p{background:var(--g);color:#032010;font-weight:bold}
+button.r{color:#ff6b6b;border-color:#ff6b6b;background:#ff6b6b18}
+input,select,textarea{width:100%;background:rgba(0,0,0,.35);color:var(--t);border:1px solid rgba(57,255,136,.35);border-radius:10px;padding:9px;margin:3px 0 8px;font-size:15px}
+label{font-size:12px;color:var(--m)}
+nav{position:fixed;bottom:0;left:0;right:0;display:flex;background:rgba(4,16,10,.88);backdrop-filter:blur(16px);border-top:1px solid #39ff8844;padding:6px 6px calc(6px + env(safe-area-inset-bottom))}
+nav b{flex:1;text-align:center;padding:10px;color:var(--m);font-size:13px}
+nav b.on{color:var(--g);text-shadow:0 0 10px var(--g)}
+.fab{position:fixed;left:16px;bottom:84px;width:58px;height:58px;border-radius:50%;font-size:30px;padding:0;box-shadow:0 0 22px var(--g);z-index:5}
+.ov{position:fixed;inset:0;background:rgba(2,10,6,.97);overflow:auto;padding:12px;display:none;z-index:9}
+.row{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.bar{display:flex;justify-content:space-between;align-items:center}
+.tag{font-size:11px;padding:2px 8px;border-radius:9px;border:1px solid var(--g)}
+.inc{color:#ffd166;border-color:#ffd166}
+#toast{position:fixed;top:16px;left:16px;right:16px;background:#062a16;border:1px solid var(--g);border-radius:12px;padding:10px;opacity:0;transition:.3s;z-index:20;pointer-events:none}
+.dp{display:flex;gap:4px}.dp select{padding:9px 4px}
+.pr,.pr *{background:#fff!important;color:#000!important;border-color:#999!important;box-shadow:none!important;text-shadow:none!important}
+</style></head><body>
+<div id="app"></div><div id="ov" class="ov"></div><div id="toast"></div>
+<button class="p fab" onclick="book()">+</button>
+<nav><b data-t="tl" onclick="tab='tl';render()">📅 تایم‌لاین</b><b data-t="fl" onclick="tab='fl';render()">🐾 پرونده‌ها</b><b data-t="st" onclick="tab='st';render()">⚙️ تنظیمات</b></nav>
+<script src="html2canvas.min.js"></script><script src="jspdf.umd.min.js"></script>
+<script>
+const $=s=>document.querySelector(s),P=n=>String(n).padStart(2,'0');
+const FA=s=>String(s).replace(/\d/g,d=>'۰۱۲۳۴۵۶۷۸۹'[d]);
+const EN=s=>String(s||'').replace(/[۰-۹]/g,d=>'۰۱۲۳۴۵۶۷۸۹'.indexOf(d)).replace(/[٠-٩]/g,d=>'٠١٢٣٤٥٦٧٨٩'.indexOf(d));
+const E=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const MN='فروردین اردیبهشت خرداد تیر مرداد شهریور مهر آبان آذر دی بهمن اسفند'.split(' ');
+const WD='یکشنبه دوشنبه سه‌شنبه چهارشنبه پنجشنبه جمعه شنبه'.split(' ');
+const TY=['سگ','گربه','پرنده','دیگر'];
+const iso=d=>d.getFullYear()+'-'+P(d.getMonth()+1)+'-'+P(d.getDate());
+const iso2=a=>a[0]+'-'+P(a[1])+'-'+P(a[2]);
+const pd=s=>{const[a,b,c]=s.split('-').map(Number);return new Date(a,b-1,c)};
+const addD=(s,n)=>{const d=pd(s);d.setDate(d.getDate()+n);return iso(d)};
+const TODAY=()=>iso(new Date());
+function g2j(gy,gm,gd){const g=[0,31,59,90,120,151,181,212,243,273,304,334],y2=gm>2?gy+1:gy;let days=355666+365*gy+Math.floor((y2+3)/4)-Math.floor((y2+99)/100)+Math.floor((y2+399)/400)+gd+g[gm-1];let jy=-1595+33*Math.floor(days/12053);days%=12053;jy+=4*Math.floor(days/1461);days%=1461;if(days>365){jy+=Math.floor((days-1)/365);days=(days-1)%365}const jm=days<186?1+Math.floor(days/31):7+Math.floor((days-186)/30),jd=1+(days<186?days%31:(days-186)%30);return[jy,jm,jd]}
+function j2g(jy,jm,jd){jy+=1595;let days=-355668+365*jy+Math.floor(jy/33)*8+Math.floor(((jy%33)+3)/4)+jd+(jm<7?(jm-1)*31:((jm-7)*30)+186);let gy=400*Math.floor(days/146097);days%=146097;if(days>36524){gy+=100*Math.floor(--days/36524);days%=36524;if(days>=365)days++}gy+=4*Math.floor(days/1461);days%=1461;if(days>365){gy+=Math.floor((days-1)/365);days=(days-1)%365}let gd=days+1;const sal=[0,31,(gy%4==0&&gy%100!=0)||gy%400==0?29:28,31,30,31,30,31,31,30,31,30,31];let gm;for(gm=0;gm<13&&gd>sal[gm];gm++)gd-=sal[gm];return[gy,gm,gd]}
+const J=s=>g2j(...s.split('-').map(Number));
+const jd=s=>{const[y,m,d]=J(s);return FA(d)+' '+MN[m-1]+' '+FA(y)};
+const DEF={clinic:'کلینیک دامپزشکی دکتر کوچکزاده',docExam:'دکتر معاینه',docSurg:'دکتر جراحی',dExam:20,dSurg:120,tBook:'{title} {name}، نوبت {kind} {animal} در تاریخ {date} ساعت {time} در {clinic} ثبت شد.',tVac:'{title} {name}، موعد واکسن {vaccine} {animal} در تاریخ {date} است. {clinic}'};
+let F=null,day=TODAY(),tab='tl',lastPh='';
+const ST=()=>Object.assign({},DEF,SETS);
+const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,5);
+const mins=t=>{const[h,m]=t.split(':').map(Number);return h*60+m};
+const hm=n=>P(Math.floor(n/60)%24)+':'+P(n%60);
+const ttl=o=>o.gender||'';
+const fill=(t,v)=>t.replace(/\{(\w+)\}/g,(m,k)=>v[k]==null?'':v[k]).replace(/\s+/g,' ').trim();
+const opt=(a,s)=>a.map(x=>`<option ${x==s?'selected':''}>${x}</option>`).join('');
+function toast(t){const e=$('#toast');e.textContent=t;e.style.opacity=1;setTimeout(()=>e.style.opacity=0,3500)}
+/* ---------- storage (SQLite) ---------- */
+const FS=()=>window.Capacitor&&Capacitor.Plugins&&Capacitor.Plugins.Filesystem,SQ=()=>Capacitor.Plugins.CapacitorSQLite,DBN='clinic',TB=['owners','animals','vacc','hist','appts','settings'];
+let SETS={};
+const SCHEMA=`CREATE TABLE IF NOT EXISTS owners(phone TEXT PRIMARY KEY,name TEXT NOT NULL DEFAULT '',gender TEXT NOT NULL DEFAULT '',note TEXT NOT NULL DEFAULT '');
+CREATE TABLE IF NOT EXISTS animals(id TEXT PRIMARY KEY,phone TEXT NOT NULL,type TEXT NOT NULL DEFAULT '',name TEXT NOT NULL DEFAULT '',breed TEXT NOT NULL DEFAULT '',sex TEXT NOT NULL DEFAULT '',birth TEXT NOT NULL DEFAULT '',weight TEXT NOT NULL DEFAULT '',neu TEXT NOT NULL DEFAULT '',allergy TEXT NOT NULL DEFAULT '',note TEXT NOT NULL DEFAULT '');
+CREATE INDEX IF NOT EXISTS ix_an_ph ON animals(phone);
+CREATE INDEX IF NOT EXISTS ix_an_nm ON animals(name);
+CREATE TABLE IF NOT EXISTS vacc(id TEXT PRIMARY KEY,aid TEXT NOT NULL,name TEXT NOT NULL DEFAULT '',date TEXT NOT NULL DEFAULT '',due TEXT NOT NULL DEFAULT '',state TEXT NOT NULL DEFAULT 'none');
+CREATE INDEX IF NOT EXISTS ix_v_aid ON vacc(aid);
+CREATE INDEX IF NOT EXISTS ix_v_st ON vacc(state,due);
+CREATE TABLE IF NOT EXISTS hist(id INTEGER PRIMARY KEY AUTOINCREMENT,aid TEXT NOT NULL,date TEXT NOT NULL DEFAULT '',type TEXT NOT NULL DEFAULT '',diag TEXT NOT NULL DEFAULT '',drug TEXT NOT NULL DEFAULT '',note TEXT NOT NULL DEFAULT '');
+CREATE INDEX IF NOT EXISTS ix_h_aid ON hist(aid);
+CREATE TABLE IF NOT EXISTS appts(id TEXT PRIMARY KEY,phone TEXT NOT NULL,aid TEXT NOT NULL DEFAULT '',kind TEXT NOT NULL DEFAULT 'exam',date TEXT NOT NULL,time TEXT NOT NULL,st TEXT NOT NULL DEFAULT 'wait');
+CREATE INDEX IF NOT EXISTS ix_ap_d ON appts(date,kind);
+CREATE TABLE IF NOT EXISTS settings(k TEXT PRIMARY KEY,v TEXT);`;
+const Q=async(s,v=[])=>(await SQ().query({database:DBN,statement:s,values:v})).values||[];
+let bt;const bk=()=>{clearTimeout(bt);bt=setTimeout(backup,4000)};
+const X=async(s,v=[])=>{await SQ().run({database:DBN,statement:s,values:v});bk()};
+const T=async set=>{await SQ().executeSet({database:DBN,set,transaction:true});bk()};
+async function initDb(){const p=SQ();try{await p.createConnection({database:DBN,version:1,encrypted:false,mode:'no-encryption',readonly:false})}catch(e){}try{await p.open({database:DBN,readonly:false})}catch(e){}await p.execute({database:DBN,statements:SCHEMA})}
+async function loadSets(){SETS={};(await Q('SELECT k,v FROM settings')).forEach(x=>SETS[x.k]=x.v)}
+async function backup(){try{if(!(await Q('SELECT 1 FROM owners LIMIT 1')).length)return;const o={};for(const t of TB)o[t]=await Q('SELECT * FROM '+t);await FS().writeFile({path:'KoochakzadehClinic/backup.json',data:JSON.stringify(o),directory:'DOCUMENTS',encoding:'utf8',recursive:true})}catch(e){toast('بکاپ ناموفق: '+(e.message||e))}}
+async function restore(auto){if(!auto&&!confirm('دیتابیس فعلی با بکاپ جایگزین میشه. ادامه؟'))return;try{const r=await FS().readFile({path:'KoochakzadehClinic/backup.json',directory:'DOCUMENTS',encoding:'utf8'}),o=JSON.parse(r.data),set=[];for(const t of TB)set.push({statement:'DELETE FROM '+t,values:[]});for(const t of TB)for(const row of o[t]||[]){const k=Object.keys(row);set.push({statement:`INSERT INTO ${t}(${k}) VALUES(${k.map(()=>'?')})`,values:k.map(c=>row[c])})}await T(set);await loadSets();render();toast('بازیابی شد')}catch(e){toast('خطای بازیابی: '+(e.message||e))}}
+/* ---------- sms ---------- */
+function sendSms(n,t){return new Promise((ok,no)=>{const go=()=>{if(!window.sms)return no('پلاگین پیامک نصب نیست');sms.send(n,t,{replaceLineBreaks:false,android:{intent:''}},ok,e=>no(e))};try{const p=cordova.plugins.permissions;p.requestPermission(p.SEND_SMS,r=>r.hasPermission?go():no('اجازه ارسال پیامک داده نشد'),()=>no('خطا در اجازه'))}catch(e){go()}})}
+/* ---------- pdf ---------- */
+async function pdf(id,name){const el=$('#'+id);el.classList.add('pr');try{const c=await html2canvas(el,{backgroundColor:'#fff',scale:2,ignoreElements:e=>e.classList&&e.classList.contains('no')});const w=210,h=c.height*w/c.width,d=new jspdf.jsPDF({unit:'mm',format:[w,Math.max(h,297)]});d.addImage(c.toDataURL('image/jpeg',.92),'JPEG',0,0,w,h);const b=d.output('datauristring').split(',')[1];await FS().writeFile({path:'KoochakzadehClinic/PDF/'+name+'.pdf',data:b,directory:'DOCUMENTS',recursive:true});toast('PDF ذخیره شد: Documents/KoochakzadehClinic/PDF')}catch(e){toast('خطای PDF: '+(e.message||e))}el.classList.remove('pr')}
+/* ---------- date picker ---------- */
+const dp=(id,v)=>{const j=v?J(v):[0,0,0],cy=J(TODAY())[0];const R=(a,b,s,f)=>{let r=v?'':'<option value=0>—</option>';for(let i=a;i<=b;i++)r+=`<option value=${i} ${i==s?'selected':''}>${f?f(i):FA(i)}</option>`;return r};return `<div class="dp" id="${id}"><select>${R(cy-3,cy+5,j[0])}</select><select>${R(1,12,j[1],i=>MN[i-1])}</select><select>${R(1,31,j[2])}</select></div>`};
+const dpv=id=>{const s=[...document.querySelectorAll('#'+id+' select')].map(x=>+x.value);return s.every(Boolean)?iso2(j2g(...s)):''};
+/* ---------- timeline ---------- */
+const INC="(o.name='' OR o.gender='' OR EXISTS(SELECT 1 FROM animals z WHERE z.phone=o.phone AND (z.breed='' OR z.sex='' OR z.birth='')))";
+async function render(){$('#app').innerHTML=tab=='tl'?await vTL():tab=='fl'?vFL():await vST();document.querySelectorAll('nav b').forEach(b=>b.classList.toggle('on',b.dataset.t==tab));if(tab=='fl')res()}
+const mv=n=>{day=addD(day,n);render()};
+async function vTL(){const st=ST(),L=await Q(`SELECT x.*,o.name oname,a.type atype,a.name aname,${INC} incx FROM appts x LEFT JOIN owners o ON o.phone=x.phone LEFT JOIN animals a ON a.id=x.aid WHERE x.date=? AND x.st!='cancel' ORDER BY x.time`,[day]);
+let h=`<div id="pdf1"><h2>${E(st.clinic)}</h2><div class="bar"><button class="s no" onclick="mv(-1)">▶</button><b>${WD[pd(day).getDay()]} ${jd(day)}</b><button class="s no" onclick="mv(1)">◀</button></div><div class="row no" style="margin:8px 0"><button class="s" onclick="day=TODAY();render()">امروز</button><button class="s" onclick="pdf('pdf1','timeline-'+day)">PDF تایم‌لاین</button></div>`;
+h+=L.length?L.map(x=>{const sg=x.kind=='surgery',e=mins(x.time)+Number(sg?st.dSurg:st.dExam);
+return `<div class="card ${x.kind}"><div class="bar"><b>${FA(x.time)} تا ${FA(hm(e))}</b><span class="tag">${sg?'جراحی · '+E(st.docSurg):'معاینه · '+E(st.docExam)}</span></div><div>${E(x.oname)||'—'} ${x.st=='arr'?'<span class="tag">✓ آمد</span>':''} ${x.incx?'<span class="tag inc">ناقص</span>':''}</div><div style="color:var(--m)">${E(x.atype)} ${E(x.aname)} · ${FA(x.phone)}</div><div class="row no" style="margin-top:8px">${x.st=='wait'?`<button class="s p" onclick="arr('${x.id}')">آمد</button>`:''}<button class="s" onclick="openFile('${x.phone}')">پرونده</button><button class="s r" onclick="canc('${x.id}')">لغو</button></div></div>`}).join(''):'<p style="color:var(--m)">نوبتی نیست</p>';
+if(day==TODAY())h+=await vVac();return h+'</div>'}
+async function vVac(){const L=await Q(`SELECT v.id vid,v.name vname,v.due,v.state,a.name aname,a.type,o.phone,o.name oname FROM vacc v JOIN animals a ON a.id=v.aid JOIN owners o ON o.phone=a.phone WHERE v.state='sent' OR (v.state='pending' AND v.due<=?) ORDER BY (v.state='sent'),v.due`,[addD(TODAY(),7)]);if(!L.length)return'';
+return '<h3>💉 یادآور واکسن</h3>'+L.map(v=>`<div class="card" style="${v.state=='sent'?'opacity:.8':''}"><b>${E(v.aname||v.type)}</b> · ${E(v.oname)} · ${FA(v.phone)}<div style="color:var(--m)">${E(v.vname)} · موعد ${jd(v.due)}</div><div class="row no" style="margin-top:6px">${v.state=='pending'?`<button class="s p" onclick="vacSend('${v.vid}')">ارسال پیامک</button><button class="s r" onclick="vacEnd('${v.vid}','cancel')">لغو</button>`:`<span class="tag">پیامک ارسال شد</span><button class="s" onclick="vacEnd('${v.vid}','done')">انجام شد</button><button class="s r" onclick="vacEnd('${v.vid}','cancel')">لغو</button>`}</div></div>`).join('')}
+async function vacSend(vid){const[v]=await Q(`SELECT v.name vname,v.due,a.name aname,a.type,o.phone,o.name oname,o.gender FROM vacc v JOIN animals a ON a.id=v.aid JOIN owners o ON o.phone=a.phone WHERE v.id=?`,[vid]),s=ST();try{await sendSms(v.phone,fill(s.tVac,{title:v.gender,name:v.oname,animal:v.aname||v.type,vaccine:v.vname,date:jd(v.due),clinic:s.clinic}));await X("UPDATE vacc SET state='sent' WHERE id=?",[vid]);render();toast('پیامک ارسال شد')}catch(e){toast('ارسال نشد: '+e)}}
+async function vacEnd(vid,s){await X('UPDATE vacc SET state=? WHERE id=?',[s,vid]);render()}
+async function arr(id){await X("UPDATE appts SET st='arr' WHERE id=?",[id]);const[x]=await Q('SELECT phone FROM appts WHERE id=?',[id]);render();openFile(x.phone)}
+async function canc(id){if(!confirm('نوبت لغو شود؟'))return;await X("UPDATE appts SET st='cancel' WHERE id=?",[id]);render()}
+/* ---------- booking ---------- */
+function book(){lastPh='';$('#ov').innerHTML=`<div class="sheet"><div class="bar"><h3>نوبت جدید</h3><button class="s" onclick="cl()">✕</button></div><label>شماره تلفن صاحب</label><input id="bph" type="tel" oninput="look()"><div id="bo"></div></div>`;$('#ov').style.display='block'}
+const cl=()=>{$('#ov').style.display='none';$('#ov').innerHTML='';F=null};
+async function look(){const ph=EN($('#bph').value).replace(/\D/g,'');if(ph.length<10||ph==lastPh)return;lastPh=ph;const o=(await Q('SELECT * FROM owners WHERE phone=?',[ph]))[0]||{name:'',gender:''};o.animals=await Q('SELECT id,type,name FROM animals WHERE phone=? ORDER BY rowid',[ph]);
+$('#bo').innerHTML=`<label>نام صاحب</label><input id="bn" value="${E(o.name)}"><label>آقا / خانم</label><select id="bg">${opt(['','آقا','خانم'],o.gender)}</select>${o.animals.length?`<label>حیوان</label><select id="ba" onchange="$('#nw').style.display=this.value=='new'?'block':'none'">${o.animals.map(a=>`<option value="${a.id}">${E(a.type)} ${E(a.name)}</option>`).join('')}<option value="new">+ حیوان جدید</option></select>`:''}<div id="nw" style="display:${o.animals.length?'none':'block'}"><label>نوع حیوان</label><select id="bt2">${opt(TY)}</select><label>اسم حیوان (اختیاری)</label><input id="bnm"></div><label>نوع نوبت</label><select id="bk"><option value="exam">معاینه</option><option value="surgery">جراحی</option></select><label>تاریخ</label>${dp('bd',day)}<label>ساعت</label><input id="btm" type="time" value="10:00"><label><input type="checkbox" id="bs" checked style="width:auto"> ارسال پیامک</label><button class="p" style="width:100%" onclick="bookSave('${ph}')">ثبت نوبت</button>`}
+async function bookSave(ph){const k=$('#bk').value,d=dpv('bd'),t=$('#btm').value,st=ST(),sg=k=='surgery',dur=Number(sg?st.dSurg:st.dExam);if(!t||!d)return toast('تاریخ و ساعت را کامل کن');const s=mins(t);
+if((await Q("SELECT time FROM appts WHERE date=? AND kind=? AND st!='cancel'",[d,k])).find(x=>s<mins(x.time)+dur&&mins(x.time)<s+dur))return toast('این بازه برای این دکتر پر است');
+const ex=(await Q('SELECT * FROM owners WHERE phone=?',[ph]))[0]||{name:'',gender:''},nm=$('#bn').value.trim()||ex.name,g=$('#bg').value||ex.gender,sel=$('#ba')?$('#ba').value:'new',set=[{statement:'INSERT OR IGNORE INTO owners(phone) VALUES(?)',values:[ph]},{statement:'UPDATE owners SET name=?,gender=? WHERE phone=?',values:[nm,g,ph]}];
+let aid=sel,an;if(sel=='new'){aid=uid();const ty=$('#bt2').value,n2=$('#bnm').value.trim();an=n2||ty;set.push({statement:'INSERT INTO animals(id,phone,type,name) VALUES(?,?,?,?)',values:[aid,ph,ty,n2]})}else an=$('#ba').selectedOptions[0].text.trim();
+set.push({statement:'INSERT INTO appts(id,phone,aid,kind,date,time,st) VALUES(?,?,?,?,?,?,?)',values:[uid(),ph,aid,k,d,t,'wait']});
+const sm=$('#bs').checked;try{await T(set)}catch(e){return toast('خطای ذخیره: '+(e.message||e))}day=d;tab='tl';cl();render();
+if(sm)try{await sendSms(ph,fill(st.tBook,{title:g,name:nm,kind:sg?'جراحی':'معاینه',animal:an,date:jd(d),time:FA(t),clinic:st.clinic}));toast('نوبت ثبت و پیامک ارسال شد')}catch(e){toast('نوبت ثبت شد، پیامک نرفت: '+e)}else toast('نوبت ثبت شد')}
+/* ---------- files ---------- */
+function vFL(){return `<h2>پرونده‌ها</h2><input id="q" placeholder="شماره، نام صاحب یا اسم حیوان" oninput="res()"><label><input type="checkbox" id="qi" onchange="res()" style="width:auto"> فقط ناقص‌ها</label><div id="rs"></div>`}
+async function res(){const w=EN($('#q').value).trim(),l='%'+w+'%',r=await Q(`SELECT o.phone,o.name,${INC} incx,(SELECT group_concat(type||' '||name,'، ') FROM animals WHERE phone=o.phone) an FROM owners o WHERE (?='' OR o.phone LIKE ? OR o.name LIKE ? OR EXISTS(SELECT 1 FROM animals WHERE phone=o.phone AND name LIKE ?)) ${$('#qi').checked?'AND '+INC:''} ORDER BY o.name LIMIT 60`,[w,l,l,l]);
+$('#rs').innerHTML=r.map(o=>`<div class="card" onclick="openFile('${o.phone}')"><b>${E(o.name)||'—'}</b> ${o.incx?'<span class="tag inc">ناقص</span>':''}<div style="color:var(--m)">${FA(o.phone)} · ${E(o.an)}</div></div>`).join('')||'<p>چیزی پیدا نشد</p>'}
+const gv=p=>p.split('.').reduce((a,k)=>a&&a[k],F);
+function S(p,v){const k=p.split('.'),l=k.pop();k.reduce((a,x)=>a[x],F)[l]=v}
+const fld=(l,p,o)=>`<label>${l}</label>`+(o?`<select onchange="S('${p}',this.value)">${opt(o,gv(p))}</select>`:`<input value="${E(gv(p))}" oninput="S('${p}',this.value)">`);
+async function openFile(ph){const o=(await Q('SELECT * FROM owners WHERE phone=?',[ph]))[0];o.animals=await Q('SELECT * FROM animals WHERE phone=? ORDER BY rowid',[ph]);for(const a of o.animals){a.vacc=await Q('SELECT * FROM vacc WHERE aid=? ORDER BY date',[a.id]);a.hist=await Q('SELECT * FROM hist WHERE aid=? ORDER BY date',[a.id])}F=o;drawFile()}
+function drawFile(){const o=F;$('#ov').innerHTML=`<div id="pdf2" class="sheet"><div class="bar no"><h3>پرونده</h3><button class="s" onclick="cl()">✕</button></div><div>📞 ${FA(o.phone)}</div>${fld('نام صاحب','name')}${fld('آقا / خانم','gender',['','آقا','خانم'])}${fld('توضیحات','note')}
+${o.animals.map((a,i)=>{const q='animals.'+i+'.';return `<div class="card"><h3>${E(a.type)} ${E(a.name)}</h3>${fld('نوع',q+'type',TY)}${fld('اسم',q+'name')}${fld('نژاد',q+'breed')}${fld('جنس',q+'sex',['','نر','ماده'])}${fld('سن / تاریخ تولد',q+'birth')}${fld('وزن (kg)',q+'weight')}${fld('عقیم شده',q+'neu',['','بله','خیر'])}${fld('آلرژی / بیماری زمینه‌ای',q+'allergy')}${fld('یادداشت',q+'note')}
+<b>واکسن‌ها</b>${a.vacc.map(v=>`<div>${E(v.name)} · ${jd(v.date)}${v.due?' · بعدی: '+jd(v.due):''}</div>`).join('')}
+<div class="no"><input id="vn${i}" placeholder="نام واکسن"><label>تاریخ تزریق</label>${dp('vd'+i,TODAY())}<label>موعد بعدی (اختیاری)</label>${dp('vu'+i,'')}<button class="s" onclick="addV(${i})">+ واکسن</button></div>
+<b>سابقه ویزیت / جراحی</b>${a.hist.map(h=>`<div>${jd(h.date)} · ${h.type}: ${E(h.diag)} ${h.drug?'· دارو: '+E(h.drug):''} ${E(h.note)}</div>`).join('')}
+<div class="no"><label>تاریخ</label>${dp('hd'+i,TODAY())}<select id="hk${i}"><option>معاینه</option><option>جراحی</option></select><input id="hg${i}" placeholder="تشخیص"><input id="hr${i}" placeholder="دارو"><input id="hn${i}" placeholder="یادداشت"><button class="s" onclick="addH(${i})">+ ثبت سابقه</button></div></div>`}).join('')}
+<div class="row no"><button class="s" onclick="F.animals.push({id:uid(),type:'سگ',name:'',vacc:[],hist:[]});drawFile()">+ حیوان</button><button class="s" onclick="pdf('pdf2','file-'+F.phone)">PDF پرونده</button><button class="p" onclick="saveF()">ذخیره</button></div></div>`;$('#ov').style.display='block'}
+function addV(i){const n=$('#vn'+i).value.trim();if(!n)return toast('نام واکسن را بنویس');const u=dpv('vu'+i);F.animals[i].vacc.push({id:uid(),name:n,date:dpv('vd'+i)||TODAY(),due:u,state:u?'pending':'none'});drawFile()}
+function addH(i){F.animals[i].hist.push({date:dpv('hd'+i)||TODAY(),type:$('#hk'+i).value,diag:$('#hg'+i).value,drug:$('#hr'+i).value,note:$('#hn'+i).value});drawFile()}
+async function saveF(){const p=F.phone,v=x=>x||'',set=[{statement:'DELETE FROM vacc WHERE aid IN (SELECT id FROM animals WHERE phone=?)',values:[p]},{statement:'DELETE FROM hist WHERE aid IN (SELECT id FROM animals WHERE phone=?)',values:[p]},{statement:'DELETE FROM animals WHERE phone=?',values:[p]},{statement:'INSERT OR REPLACE INTO owners(phone,name,gender,note) VALUES(?,?,?,?)',values:[p,v(F.name),v(F.gender),v(F.note)]}];
+for(const a of F.animals){set.push({statement:'INSERT INTO animals(id,phone,type,name,breed,sex,birth,weight,neu,allergy,note) VALUES(?,?,?,?,?,?,?,?,?,?,?)',values:[a.id,p,v(a.type),v(a.name),v(a.breed),v(a.sex),v(a.birth),v(a.weight),v(a.neu),v(a.allergy),v(a.note)]});for(const x of a.vacc)set.push({statement:'INSERT INTO vacc(id,aid,name,date,due,state) VALUES(?,?,?,?,?,?)',values:[x.id,a.id,x.name,x.date,v(x.due),x.state]});for(const h of a.hist)set.push({statement:'INSERT INTO hist(aid,date,type,diag,drug,note) VALUES(?,?,?,?,?,?)',values:[a.id,h.date,h.type,v(h.diag),v(h.drug),v(h.note)]})}
+try{await T(set)}catch(e){return toast('خطای ذخیره: '+(e.message||e))}cl();render();toast('ذخیره شد')}
+/* ---------- settings ---------- */
+const SK=[['clinic','نام کلینیک'],['docExam','نام دکتر معاینه'],['docSurg','نام دکتر جراحی'],['dExam','مدت معاینه (دقیقه)'],['dSurg','مدت جراحی (دقیقه)']];
+async function vST(){const s=ST(),n=(await Q('SELECT COUNT(*) c FROM owners'))[0].c;return `<h2>تنظیمات</h2><div class="card">${SK.map(([k,l])=>`<label>${l}</label><input id="s_${k}" value="${E(s[k])}">`).join('')}<label>قالب پیامک ثبت نوبت</label><textarea id="s_tBook" rows="3">${E(s.tBook)}</textarea><label>قالب پیامک واکسن</label><textarea id="s_tVac" rows="3">${E(s.tVac)}</textarea><small style="color:var(--m)">متغیرها: {title} {name} {animal} {kind} {date} {time} {clinic} {vaccine}</small><button class="p" style="width:100%;margin-top:8px" onclick="saveS()">ذخیره</button></div><div class="card" style="color:var(--m)">تعداد پرونده: ${FA(n)}<br>دیتابیس SQLite داخل اپ است. بکاپ خودکار: Documents/KoochakzadehClinic/backup.json<div class="row" style="margin-top:8px"><button class="s" onclick="backup().then(()=>toast('بکاپ گرفته شد'))">بکاپ همین الان</button><button class="s r" onclick="restore()">بازیابی از بکاپ</button></div></div>`}
+async function saveS(){const ks=[...SK.map(x=>x[0]),'tBook','tVac'],set=[{statement:'DELETE FROM settings',values:[]}];ks.forEach(k=>set.push({statement:'INSERT INTO settings(k,v) VALUES(?,?)',values:[k,['dExam','dSurg'].includes(k)?EN($('#s_'+k).value):$('#s_'+k).value]}));try{await T(set);await loadSets();toast('تنظیمات ذخیره شد')}catch(e){toast('خطا: '+(e.message||e))}}
+/* ---------- start ---------- */
+(async()=>{try{await FS().requestPermissions()}catch(e){}
+try{await initDb();await loadSets();if(!(await Q('SELECT 1 FROM owners LIMIT 1')).length)try{await FS().stat({path:'KoochakzadehClinic/backup.json',directory:'DOCUMENTS'});if(confirm('بکاپ قبلی پیدا شد. بازیابی بشه؟'))await restore(true)}catch(e){}}catch(e){toast('خطای دیتابیس: '+(e.message||e))}
+render()})();
+document.addEventListener('visibilitychange',()=>{if(document.hidden)backup()});
+</script></body></html>
