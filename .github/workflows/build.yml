@@ -1,0 +1,38 @@
+name: Build APK
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 20 }
+      - uses: actions/setup-java@v4
+        with: { distribution: temurin, java-version: 17 }
+      - run: npm install
+      - name: Build
+        run: |
+          pip install pillow
+          python3 - <<'PY'
+          from PIL import Image
+          im=Image.open('assets/icon-only.png').convert('RGBA')
+          Image.new('RGBA',(1024,1024),(255,255,255,255)).save('assets/icon-background.png')
+          fg=Image.new('RGBA',(1024,1024),(0,0,0,0)); sm=im.resize((700,700)); fg.paste(sm,(162,162),sm); fg.save('assets/icon-foreground.png')
+          im.resize((256,256)).save('www/logo.png')
+          PY
+          cp node_modules/html2canvas/dist/html2canvas.min.js www/
+          cp node_modules/jspdf/dist/jspdf.umd.min.js www/
+          cp "node_modules/vazirmatn/fonts/webfonts/Vazirmatn[wght].woff2" www/vazir.woff2 || cp "$(find node_modules/vazirmatn -name 'Vazirmatn-Regular.woff2' | head -1)" www/vazir.woff2 || true
+          npx cap add android
+          npx -y @capacitor/assets generate --android --iconBackgroundColor '#ffffff' || echo icon-step-failed
+          npx cap sync android
+          M=android/app/src/main/AndroidManifest.xml
+          sed -i 's#<application#<uses-permission android:name="android.permission.SEND_SMS"/><uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE"/><uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"/><uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"/><application android:requestLegacyExternalStorage="true"#' $M
+          cd android && chmod +x gradlew && ./gradlew assembleDebug
+      - uses: actions/upload-artifact@v4
+        with:
+          name: clinic-apk
+          path: android/app/build/outputs/apk/debug/app-debug.apk
